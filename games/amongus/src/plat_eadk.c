@@ -5,7 +5,7 @@
 #include "plat.h"
 
 #ifndef NP_PORT /* (another target: platform/port.mk names the app) */
-const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Among Us";
+const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "MatricesA";
 const uint32_t eadk_api_level __attribute__((section(".rodata.eadk_api_level"))) = 0;
 #endif
 

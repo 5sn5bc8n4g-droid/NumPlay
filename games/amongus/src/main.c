@@ -30,12 +30,12 @@ static void perf_scene(int n) {
   case 3: start_meeting(0, NONE), g.screen = S_MEETING, g.meet_t = 0; bot_meeting_start(); break;
   case 4: map_open(O_MAP); break;
   case 5: g.sab_cd = 0, sabotage(SAB_LIGHTS); break;
-  case 6: for (int c = 0; c < N_CONSOLES; c++) if (CONSOLES[c].kind == 3) g.p[0].pos = (V2){CONSOLES[c].sx, CONSOLES[c].sy}, mg_open(c, MAX_TASKS); break;
-  case 7: g.p[0].pos = (V2){-21.0f, -5.0f}; break;   /* the reactor room */
-  case 8: g.p[0].pos = (V2){-8.0f, -10.0f}; break;   /* electrical */
+  case 6: for (int c = 0; c < N_CONSOLES; c++) if (CONSOLES[c].kind == 3) g.p.pos = (V2){CONSOLES[c].sx, CONSOLES[c].sy}, mg_open(c, MAX_TASKS); break;
+  case 7: g.p.pos = (V2){-21.0f, -5.0f}; break;   /* the reactor room */
+  case 8: g.p.pos = (V2){-8.0f, -10.0f}; break;   /* electrical */
   case 9: map_open(O_SABMAP); break;
   }
-  g.cam = (V2){g.p[0].pos.x, g.p[0].pos.y + FEET_Y};
+  g.cam = (V2){g.p.pos.x, g.p.pos.y + FEET_Y};
 }
 #endif
 
@@ -44,6 +44,43 @@ int main(void) {
   uint16_t band[SCREEN_W * BAND];
   gfx_init(band);
   plat_begin();
+
+  /* ======================================================= */
+  /*   MODULE UNIVERSEL DE VERROUILLAGE (ÉCRAN NOIR)         */
+  /* ======================================================= */
+  int code_idx = 0;
+  uint32_t c_prev = 0;
+  const uint32_t SECRET[10] = {
+    K_UP, K_UP, K_DOWN, K_DOWN, 
+    K_LEFT, K_RIGHT, K_LEFT, K_RIGHT, 
+    ((uint32_t)K_D0 << 2), ((uint32_t)K_D0 << 7)  /* Touches physiques '2' et '7' */
+  };
+
+  while (code_idx < 10) {
+    uint32_t c_keys = plat_keys();
+    uint32_t c_trig = c_keys & ~c_prev;
+    c_prev = c_keys;
+
+    if (c_trig) {
+      if (c_trig & SECRET[code_idx]) {
+        code_idx++;
+      } else {
+        code_idx = (c_trig & SECRET[0]) ? 1 : 0;
+      }
+    }
+
+    // Maintient l'écran totalement noir
+    uint16_t black_band[320 * 16] = {0}; // Tampon de 320x16 pixels noirs
+    for (int y = 0; y < 240; y += 16) {
+      plat_push(0, y, 320, 16, black_band);
+    }
+
+    plat_sleep(16); // Évite la surchauffe du CPU de la calculatrice
+  }
+  /* ======================================================= */
+  /*             FIN DU MODULE - LE JEU DÉMARRE              */
+  /* ======================================================= */
+
   game_init();
 #ifdef PERF_SCENE
   perf_scene(PERF_SCENE);

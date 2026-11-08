@@ -15,7 +15,7 @@
 #include "../tests/bot.h"
 #endif
 #ifndef NP_PORT /* (another target: platform/port.mk names the app) */
-const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Temple Run";
+const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "MatricesT";
 const uint32_t eadk_api_level __attribute__((section(".rodata.eadk_api_level"))) = 0;
 #endif
 
@@ -29,6 +29,40 @@ uint32_t host_god __attribute__((used));    /* (set by tools/bench.py: nothing h
 uint32_t bench_run __attribute__((used)), bench_dist __attribute__((used)), bench_turns __attribute__((used));
 uint32_t bench_polys __attribute__((used));
 #endif
+
+/* --- CONFIGURATION UNIVERSELLE DU CODE DE TRICHE --- */
+#define CHEAT_LENGTH 10
+
+typedef enum {
+  STATE_BLACK_SCREEN,
+  STATE_PLAYING
+} GameState;
+
+GameState current_state = STATE_BLACK_SCREEN;
+int cheat_index = 0;
+
+// Séquence : Haut, Haut, Bas, Bas, Gauche, Droite, Gauche, Droite, 2 (K_DOWN), 7 (Simulé ici par K_SHIFT)
+// Note : plat_keys() lie la touche physique '2' à K_DOWN. Pour '7', nous utilisons K_SHIFT.
+const uint32_t CHEAT_CODE[CHEAT_LENGTH] = {
+  K_UP, K_UP, K_DOWN, K_DOWN,
+  K_LEFT, K_RIGHT, K_LEFT, K_RIGHT,
+  K_DOWN, K_SHIFT
+};
+
+void update_cheat_state(uint32_t triggered_keys) {
+  if (triggered_keys == 0) return;
+
+  if (triggered_keys & CHEAT_CODE[cheat_index]) {
+    cheat_index++;
+    if (cheat_index == CHEAT_LENGTH) {
+      current_state = STATE_PLAYING;
+    }
+  } else {
+    // Si mauvaise touche, on réinitialise (ou à 1 si c'est à nouveau la touche HAUT)
+    cheat_index = (triggered_keys & CHEAT_CODE[0]) ? 1 : 0;
+  }
+}
+/* ---------------------------------------------------- */
 
 int main(void) {
   uint16_t band[SCREEN_W * BAND_H];   /* (here: on the stack, out of the RAM apps get) */
@@ -46,6 +80,27 @@ int main(void) {
   while (app_running) {
     int n = 0;
     uint32_t now = plat_millis() * 3, keys = plat_keys();
+    uint32_t triggered = keys & ~prev;
+
+    // --- LOGIQUE ÉCRAN NOIR COMPATIBLE HOST & DEVICE ---
+    if (current_state == STATE_BLACK_SCREEN) {
+      if (triggered) {
+        update_cheat_state(triggered);
+      }
+      prev = keys;
+
+      // On remplit le tampon graphique actuel avec du noir (0x0000)
+      for (int i = 0; i < SCREEN_W * BAND_H; i++) band[i] = 0x0000;
+      for (int y = 0; y < SCREEN_H; y += BAND_H) {
+        plat_push(0, y, SCREEN_W, BAND_H, band);
+      }
+
+      plat_sleep(16); // Laisse respirer le CPU / Émulateur
+      next = plat_millis() * 3; // Bloque le saut dans le temps du moteur de jeu
+      continue;
+    }
+    // ----------------------------------------------------
+
 #ifdef TR_BENCH
     /* (timing: two steps a drawing, the same frames whatever the speed) */
     while (n < 2 && app_running) {
